@@ -11,6 +11,8 @@
   import { alert, todos } from "../stores.js";
   import {
     addTodoService,
+    checkAllTodosService,
+    deleteCompletedTodosService,
     deleteTodoService,
     getTodosService,
     updateTodoService,
@@ -70,13 +72,17 @@
     else if (filter === "completed") $alert = "Browsing completed todos";
   }
 
-  const checkAllTodos = (completed) => {
-    $todos = $todos.map((t) => ({ ...t, completed }));
-    $alert = `${completed ? "Checked" : "Unchecked"} ${$todos.length} todos`;
+  const checkAllTodos = async (completed) => {
+    const res = await checkAllTodosService(completed);
+    await fetchTodos();
+    $alert = `${completed ? "Checked" : "Unchecked"} ${
+      res ? res.count : "0"
+    } todos`;
   };
-  const removeCompletedTodos = () => {
-    $alert = `Removed ${$todos.filter((t) => t.completed).length} todos`;
-    $todos = $todos.filter((t) => !t.completed);
+  const removeCompletedTodos = async () => {
+    const res = await deleteCompletedTodosService();
+    await fetchTodos();
+    $alert = `Removed ${res ? res.count : "0"} todos`;
   };
 
   const fetchTodos = async () => {

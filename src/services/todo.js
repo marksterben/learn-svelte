@@ -45,12 +45,22 @@ export const deleteTodoService = async ({ id }) => {
   }
 };
 
-export const deleteAllTodoService = async () => {
+export const deleteCompletedTodosService = async () => {
   try {
-    await axios.delete(
-      `https://marksterben-item-list-api.herokuapp.com/api/items`
+    const { data } = await axios.delete(`${baseUrl}/api/todos`);
+    return data;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+export const checkAllTodosService = async (checked) => {
+  try {
+    const { data } = await axios.get(
+      `${baseUrl}/api/todos/check?checked=${checked}`
     );
-    return true;
+    return data;
   } catch (error) {
     console.error(error);
     return false;
