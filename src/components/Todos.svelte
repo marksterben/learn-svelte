@@ -1,90 +1,132 @@
 <!-- components/Todos.svelte -->
 <script>
-  import FilterButton from './FilterButton.svelte'
-  import Todo from './Todo.svelte'
-  import MoreActions from './MoreActions.svelte'
-  import NewTodo from './NewTodo.svelte'
-  import TodosStatus from './TodosStatus.svelte'
-  import { alert } from '../stores.js'
+  import { onMount } from "svelte";
 
-  export let todos = []
+  import FilterButton from "./FilterButton.svelte";
+  import Todo from "./Todo.svelte";
+  import MoreActions from "./MoreActions.svelte";
+  import NewTodo from "./NewTodo.svelte";
+  import TodosStatus from "./TodosStatus.svelte";
 
-  let todosStatus                   // reference to TodosStatus instance
+  import { alert, todos } from "../stores.js";
+  import {
+    addTodoService,
+    deleteTodoService,
+    getTodosService,
+    updateTodoService,
+  } from "../services/todo";
 
-  $: newTodoId = todos.length > 0 ? Math.max(...todos.map(t => t.id)) + 1 : 1
+  let todosStatus; // reference to TodosStatus instance
+  let isLoading = false;
 
-  function addTodo(name) {
-    todos = [...todos, { id: newTodoId, name, completed: false }]
-    $alert = `Todo '${name}' has been added`
+  async function addTodo(name) {
+    const res = await addTodoService(name);
+    if (res) {
+      await fetchTodos();
+      $alert = `Todo '${name}' has been added`;
+    } else {
+      $alert = "Failed to add new todo";
+    }
   }
 
-  function removeTodo(todo) {
-    todos = todos.filter(t => t.id !== todo.id)
-    todosStatus.focus()             // give focus to status heading
-    $alert = `Todo '${todo.name}' has been deleted`
+  async function removeTodo(todo) {
+    const res = await deleteTodoService(todo);
+    if (res) {
+      await fetchTodos();
+      todosStatus.focus(); // give focus to status heading
+      $alert = `Todo '${todo.name}' has been deleted`;
+    } else {
+      $alert = "Failed to delete todo";
+    }
   }
 
-  function updateTodo(todo) {
-    const i = todos.findIndex(t => t.id === todo.id)
-    if (todos[i].name !== todo.name)            $alert = `todo '${todos[i].name}' has been renamed to '${todo.name}'`
-    if (todos[i].completed !== todo.completed)  $alert = `todo '${todos[i].name}' marked as ${todo.completed ? 'completed' : 'active'}`
-    todos[i] = { ...todos[i], ...todo }
+  async function updateTodo(todo) {
+    const res = await updateTodoService(todo);
+    if (res) {
+      const i = $todos.findIndex((t) => t.id === todo.id);
+      if ($todos[i].name !== todo.name)
+        $alert = `todo '${$todos[i].name}' has been renamed to '${todo.name}'`;
+      if ($todos[i].completed !== todo.completed)
+        $alert = `todo '${$todos[i].name}' marked as ${
+          todo.completed ? "completed" : "active"
+        }`;
+      await fetchTodos();
+    } else {
+      $alert = "Failed to update todo";
+    }
   }
 
-  let filter = 'all'
-  const filterTodos = (filter, todos) => 
-    filter === 'active' ? todos.filter(t => !t.completed) :
-    filter === 'completed' ? todos.filter(t => t.completed) : 
-    todos
+  let filter = "all";
+  const filterTodos = (filter, todos) =>
+    filter === "active"
+      ? todos.filter((t) => !t.completed)
+      : filter === "completed"
+      ? todos.filter((t) => t.completed)
+      : todos;
 
   $: {
-    if (filter === 'all')               $alert = 'Browsing all todos'
-    else if (filter === 'active')       $alert = 'Browsing active todos'
-    else if (filter === 'completed')    $alert = 'Browsing completed todos'
+    if (filter === "all") $alert = "Browsing all todos";
+    else if (filter === "active") $alert = "Browsing active todos";
+    else if (filter === "completed") $alert = "Browsing completed todos";
   }
 
   const checkAllTodos = (completed) => {
-    todos = todos.map(t => ({...t, completed}))
-    $alert = `${completed ? 'Checked' : 'Unchecked'} ${todos.length} todos`
-  }
+    $todos = $todos.map((t) => ({ ...t, completed }));
+    $alert = `${completed ? "Checked" : "Unchecked"} ${$todos.length} todos`;
+  };
   const removeCompletedTodos = () => {
-    $alert = `Removed ${todos.filter(t => t.completed).length} todos`
-    todos = todos.filter(t => !t.completed)
-  }
+    $alert = `Removed ${$todos.filter((t) => t.completed).length} todos`;
+    $todos = $todos.filter((t) => !t.completed);
+  };
 
+  const fetchTodos = async () => {
+    const res = await getTodosService();
+    if (res) {
+      $todos = res.data;
+    }
+  };
+
+  onMount(async () => {
+    isLoading = true;
+    await fetchTodos();
+    isLoading = false;
+  });
 </script>
 
 <div class="todoapp stack-large">
-
   <!-- NewTodo -->
-  <NewTodo autofocus on:addTodo={e => addTodo(e.detail)} />
+  <NewTodo autofocus on:addTodo={(e) => addTodo(e.detail)} />
 
   <!-- Filter -->
   <FilterButton bind:filter />
 
   <!-- TodosStatus -->
-  <TodosStatus bind:this={todosStatus} {todos} />
+  <TodosStatus bind:this={todosStatus} />
 
   <!-- Todos -->
   <ul role="list" class="todo-list stack-large" aria-labelledby="list-heading">
-  {#each filterTodos(filter, todos) as todo (todo.id)}
-    <li class="todo">
-      <Todo {todo}
-        on:update={e => updateTodo(e.detail)}
-        on:remove={e => removeTodo(e.detail)}
-      />
-    </li>
-  {:else}
-    <li>Nothing to do here!</li>
-  {/each}
+    {#if isLoading}
+      <li>Loading ....</li>
+    {:else}
+      {#each filterTodos(filter, $todos) as todo (todo.id)}
+        <li class="todo">
+          <Todo
+            {todo}
+            on:update={(e) => updateTodo(e.detail)}
+            on:remove={(e) => removeTodo(e.detail)}
+          />
+        </li>
+      {:else}
+        <li>Nothing to do here!</li>
+      {/each}
+    {/if}
   </ul>
 
   <hr />
 
   <!-- MoreActions -->
-  <MoreActions {todos}
-    on:checkAll={e => checkAllTodos(e.detail)}
+  <MoreActions
+    on:checkAll={(e) => checkAllTodos(e.detail)}
     on:removeCompleted={removeCompletedTodos}
   />
-
 </div>
