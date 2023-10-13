@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseUrl = "https://todo-app-api-i6q3.onrender.com/";
+const baseUrl = "https://todo-app-api-i6q3.onrender.com";
 
 export const getTodosService = async () => {
   try {
